@@ -303,6 +303,31 @@ for each record (10,000개):
 15        000100002707  000000000000000000000000  7   536872160
 ```
 
+### TYPE7: 혼합 결함 — 4가지 시나리오 상세
+
+type7은 **컬럼(DQ) + 블록 + 단일셀** 3종 결함을 합성한 복합 웨이퍼 불량 패턴입니다.
+ADDR는 4가지 모두 순차 (`BASE_ADDR + i`), IO만 경중도별로 다릅니다.
+
+**파라미터 비교** (기본 10,000 레코드 = 1,250 row × 8 BL 기준):
+
+| 파일 | 컬럼 DQ 수 | DQ 마스크 | 블록 범위 (row) | 블록 레코드 수 | 단일셀 확률 | 결함 합성 |
+|------|-----------|-----------|----------------|--------------|-----------|----------|
+| mixed_light.bin | 1 | 96-bit 중 1비트 | 없음 | 0 | 1% (10‰) | col만 + 간헐 단일셀 |
+| mixed_moderate.bin | 2 | 등간격 2비트 | row 200~209 | 80 (10row×8BL) | 5% (50‰) | col + 소규모 block + 단일셀 |
+| mixed_heavy.bin | 4 | 등간격 4비트 | row 100~299 | 1,600 (200row×8BL) | 10% (100‰) | col + 대규모 block + 높은 단일셀 |
+| mixed_extreme.bin | 8 | 등간격 8비트 | row 0~249 + 500~749 | 4,000 (500row×8BL) | 20% (200‰) | col + 2개 block 영역 + 최고 단일셀 |
+
+**IO 생성 로직** (`gen_mixed_defect`, `sw/test/gen_type7.c`):
+1. **컬럼 마스크**: `spacing = 96 / col_dq`로 등간격 DQ 비트 선택 → 모든 non-block 레코드에 OR
+2. **블록 결함**: 지정 row 범위 내 → IO = 0xFF×12 (전체 fail)
+3. **단일셀**: 블록 밖 레코드에 확률적 랜덤 1-bit OR 추가
+
+**압축 관점** (DH 1v0 알고리즘 기준):
+- **light**: 대부분 동일 col_mask → Token C(repeat) 지배, 높은 압축률
+- **moderate**: 블록 구간 80 rec는 Token B(0xFF)+Token C, 나머지 col_mask Token C
+- **heavy**: 블록 1,600 rec가 크고, 단일셀 10%로 col_mask만인 레코드 비율 감소 → Token C 효율 저하
+- **extreme**: 블록 4,000 rec (40%) + 단일셀 20% → Token B/C 혼재, 최저 압축률
+
 ### TYPE7: 혼합 결함 (mixed_moderate.bin, records 1592~1615)
 
 > **주목:** burst 199~201 경계: col_mask + block defect 전환

@@ -195,6 +195,7 @@ int generate_type1(int n_records)
 }
 
 #ifndef GEN_TESTDATA_COMBINED
+#include <sys/stat.h>
 int main(int argc, char *argv[])
 {
     int n = 10000;
@@ -205,6 +206,8 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
+    g_outdir = ".";
+    mkdir("type1", 0755);
     return generate_type1(n);
 }
 #endif
